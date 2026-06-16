@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生徒会 出席管理システム LTS</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --purple: #8b5cf6;
+        }
+
+        body {
+            font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", sans-serif;
+            background: #f4f7fb;
+            color: #1f2937;
+        }
+
+        .login-page {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, var(--primary), #1d4ed8);
+            padding: 20px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+
+        .login-card h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .sub-title {
+            color: #6b7280;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .version-info {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-bottom: 25px;
+        }
+
+        .config-alert {
+            background: #fee2e2;
+            border: 2px solid #fca5a5;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .button-row {
+            display: flex;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        button {
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            transition: 0.2s;
+            font-family: inherit;
+            flex: 1;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:focus {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #1d4ed8;
+        }
+
+        .btn-admin {
+            background: var(--purple);
+            color: white;
+        }
+
+        .btn-admin:hover:not(:disabled) {
+            background: #7c3aed;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #4b5563;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1200px;
+            margin: 90px auto 25px;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 25px;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            z-index: 1000;
+        }
+
+        .header-title {
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sync-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .sync-status.online {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .sync-status.offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .sync-status.syncing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #22c55e;
+        }
+
+        .status-dot.offline {
+            background: #ef4444;
+            animation: none;
+        }
+
+        .status-dot.syncing {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .header-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .sync-text {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .logout-btn {
+            background: #111827;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background: #374151;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .dashboard-label {
+            color: #6b7280;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .dashboard-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .attendance-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .btn-large {
+            padding: 15px !important;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #16a34a;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .list-box {
+            min-height: 100px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .list-item {
+            padding: 10px;
+            margin: 8px 0;
+            background: white;
+            border-left: 3px solid var(--primary);
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-item small {
+            display: block;
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .message-box {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .message-box.show {
+            display: block;
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .message-box.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+            font-size: 13px;
+            margin-top: 40px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        canvas {
+            width: 100% !important;
+            max-height: 350px;
+        }
+
+        .backup-section {
+            background: #f0f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .backup-btn {
+            background: #0284c7;
+            color: white;
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .backup-btn:hover {
+            background: #0369a1;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid var(--primary);
+            padding: 12px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 13px;
+            color: #1e40af;
+        }
+
+        .success-box {
+            background: #dcfce7;
+            border-left: 4px solid var(--success);
+            padding: 12px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 13px;
+            color: #166534;
+        }
+
+        @media (max-width: 640px) {
+            .button-row {
+                flex-direction: column;
+            }
+
+            .attendance-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .sync-status {
+                font-size: 10px;
+                padding: 3px 8px;
+                margin-left: 5px;
+            }
+
+            .header-title {
+                flex-wrap: wrap;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== ログイン画面 ==================== -->
+<div id="loginPage" class="login-page">
+    <div class="login-card">
+        <div class="logo">🏫</div>
+        <h1>生徒会 出席管理</h1>
+        <p class="sub-title">Student Council Attendance System</p>
+        <p class="version-info" id="versionInfo">バージョン: 読み込み中...</p>
+        <div id="configMsg" class="config-alert hidden">
+            ✅ Firebase接続テスト中...
+        </div>
+        <div id="firebaseStatus" style="font-size: 12px; margin-bottom: 20px; color: #666;"></div>
+        <div class="button-row" style="flex-direction: column;">
+            <button id="memberLoginBtn" class="btn-primary">👤 生徒会会員でログイン</button>
+            <button id="adminLoginBtn" class="btn-admin">🔐 管理者でログイン</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 会員ログイン画面 ==================== -->
+<div id="memberLoginPage" class="login-page hidden">
+    <div class="login-card">
+        <div class="logo">👤</div>
+        <h1>会員ログイン</h1>
+        <div class="form-group">
+            <label for="memberSelect">氏名を選択</label>
+            <select id="memberSelect">
+                <option value="">-- 会員を選択 --</option>
+            </select>
+        </div>
+        <div class="button-row">
+            <button id="memberLoginSubmitBtn" class="btn-primary">ログイン</button>
+            <button id="memberBackBtn" class="btn-secondary">戻る</button>
+        </div>
+        <div id="memberLoginMsg" style="color: #ef4444; margin-top: 15px; font-size: 14px;"></div>
+    </div>
+</div>
+
+<!-- ==================== 管理者ログイン画面 ==================== -->
+<div id="adminLoginPage" class="login-page hidden">
+    <div class="login-card">
+        <div class="logo">🔐</div>
+        <h1>管理者ログイン</h1>
+        <div class="form-group">
+            <label for="adminLoginId">ログインID</label>
+            <input type="text" id="adminLoginId" placeholder="admin001">
+        </div>
+        <div class="form-group">
+            <label for="adminLoginPass">パスワード</label>
+            <input type="password" id="adminLoginPass" placeholder="admin1234">
+        </div>
+        <div class="button-row">
+            <button id="adminLoginSubmitBtn" class="btn-admin">ログイン</button>
+            <button id="adminBackBtn" class="btn-secondary">戻る</button>
+        </div>
+        <div id="adminLoginMsg" style="color: #ef4444; margin-top: 15px; font-size: 14px;"></div>
+    </div>
+</div>
+
+<!-- ==================== 会員アプリ ==================== -->
+<div id="memberApp" class="hidden">
+    <header>
+        <div class="header-title">
+            👤 出席確認
+            <div id="memberConnectionStatus" class="sync-status online">
+                <span class="status-dot online"></span>
+                <span>接続中</span>
+            </div>
+        </div>
+        <div class="header-user">
+            <div class="user-info">
+                <div id="memberUserInfo" class="user-name">-</div>
+                <div class="sync-text" id="syncTextMember">準備中...</div>
+            </div>
+            <button id="memberLogoutBtn" class="logout-btn">ログアウト</button>
+        </div>
+    </header>
+
+    <main class="container" style="max-width: 600px;">
+        <section class="dashboard">
+            <div class="dashboard-card">
+                <div class="dashboard-label">出席</div>
+                <div id="memberPresentCount" class="dashboard-value">0</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="dashboard-label">欠席</div>
+                <div id="memberAbsentCount" class="dashboard-value">0</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="dashboard-label">遅刻</div>
+                <div id="memberLateCount" class="dashboard-value">0</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="dashboard-label">早退</div>
+                <div id="memberLeaveCount" class="dashboard-value">0</div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>出席登録</h2>
+            <div class="info-box">
+                💡 本日の出席状態を登録してください。一度登録すると変更できません。
+            </div>
+            <div class="attendance-buttons">
+                <button id="memberPresentBtn" class="btn-success btn-large">✓ 出席</button>
+                <button id="memberAbsentBtn" class="btn-danger btn-large">✗ 欠席</button>
+                <button id="memberLateBtn" class="btn-warning btn-large">⏱ 遅刻</button>
+                <button id="memberLeaveBtn" class="btn-primary btn-large">→ 早退</button>
+            </div>
+            <div class="form-group">
+                <label for="memberReasonInput">理由（必要な場合）</label>
+                <textarea id="memberReasonInput" rows="2" placeholder="入力してください"></textarea>
+            </div>
+            <button id="memberSubmitBtn" class="btn-primary" style="width: 100%; margin-top: 10px;">登録する</button>
+            <div id="memberMessageBox" class="message-box"></div>
+        </section>
+
+        <section class="card">
+            <h2>本日の登録一覧</h2>
+            <div id="memberTodayList" class="list-box">データなし</div>
+        </section>
+
+        <section class="card">
+            <h2>出席状況</h2>
+            <div style="position: relative; height: 300px;">
+                <canvas id="memberChart"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">Student Council Attendance System LTS - Powered by Firebase</footer>
+</div>
+
+<!-- ==================== 管理者アプリ ==================== -->
+<div id="adminApp" class="hidden">
+    <header>
+        <div class="header-title">
+            📋 生徒会 出席管理システム
+            <div id="adminConnectionStatus" class="sync-status online">
+                <span class="status-dot online"></span>
+                <span>接続中</span>
+            </div>
+        </div>
+        <div class="header-user">
+            <div class="user-info">
+                <div class="user-name">管理者</div>
+                <div class="sync-text" id="syncTextAdmin">準備中...</div>
+            </div>
+            <button id="adminLogoutBtn" class="logout-btn">ログアウト</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="dashboard">
+            <div class="dashboard-card">
+                <div class="dashboard-label">出席</div>
+                <div id="presentCount" class="dashboard-value">0</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="dashboard-label">欠席</div>
+                <div id="absentCount" class="dashboard-value">0</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="dashboard-label">遅刻</div>
+                <div id="lateCount" class="dashboard-value">0</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="dashboard-label">早退</div>
+                <div id="leaveCount" class="dashboard-value">0</div>
+            </div>
+            <div class="dashboard-card" style="background: #fef3c7; border: 2px solid #f59e0b;">
+                <div class="dashboard-label">未登録</div>
+                <div id="unregisteredCount" class="dashboard-value">0</div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>本日の登録一覧</h2>
+            <div id="todayList" class="list-box">データなし</div>
+        </section>
+
+        <section class="card">
+            <h2>未登録者一覧</h2>
+            <div id="unregisteredList" class="list-box">全員登録済み！</div>
+        </section>
+
+        <section class="card">
+            <h2>会員管理</h2>
+            <div class="button-row">
+                <div class="form-group" style="flex: 1;">
+                    <label for="newMemberName">氏名</label>
+                    <input type="text" id="newMemberName" placeholder="氏名">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="newMemberGrade">学年</label>
+                    <select id="newMemberGrade">
+                        <option value="">選択</option>
+                        <option value="1">1年</option>
+                        <option value="2">2年</option>
+                        <option value="3">3年</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="newMemberClass">クラス</label>
+                    <select id="newMemberClass">
+                        <option value="">選択</option>
+                        <option value="1組">1組</option>
+                        <option value="2組">2組</option>
+                        <option value="3組">3組</option>
+                        <option value="4組">4組</option>
+                    </select>
+                </div>
+            </div>
+            <button id="addMemberBtn" class="btn-primary" style="width: 100%;">会員追加</button>
+            <div id="memberList" class="list-box" style="margin-top: 15px;">会員なし</div>
+        </section>
+
+        <section class="card">
+            <h2>管理機能</h2>
+            <div class="button-row">
+                <button id="refreshBtn" class="btn-primary">🔄 リアルタイム更新</button>
+                <button id="resetDataBtn" class="btn-danger">🗑️ 本日リセット</button>
+            </div>
+            <div class="backup-section">
+                <strong>📊 データバックアップ</strong><br>
+                <p style="font-size: 12px; color: #6b7280; margin: 8px 0;">
+                    定期的にデータをバックアップしています。<br>
+                    必要に応じてダウンロードしてください。
+                </p>
+                <button id="backupBtn" class="backup-btn">📥 JSONデータをダウンロード</button>
+                <div id="backupInfo" style="font-size: 12px; color: #6b7280; margin-top: 8px;"></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>出席状況分析</h2>
+            <div style="position: relative; height: 300px;">
+                <canvas id="adminChart"></canvas>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>システム情報</h2>
+            <table style="width: 100%; font-size: 13px;">
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">バージョン</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;" id="sysVersion">-</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">最終更新</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;" id="sysUpdated">-</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">会員数</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;" id="sysMemberCount">-</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">登録数</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;" id="sysRecordCount">-</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; font-weight: 600;">最終同期</td>
+                    <td style="padding: 8px;" id="sysLastSync">-</td>
+                </tr>
+            </table>
+        </section>
+    </main>
+
+    <footer class="footer">Student Council Attendance System LTS - Powered by Firebase</footer>
+</div>
+
+<script>
+    "use strict";
+
+    // ==================== システム設定 ====================
+    const SYSTEM_INFO = {
+        VERSION: '8.0.0-LTS',
+        RELEASE_DATE: '2025-01-16',
+        LAST_UPDATED: '2025-01-16',
+        FIREBASE_SDK_VERSION: '10.7.0',
+        SUPPORT_EMAIL: 'support@school.edu'
+    };
+
+    // ==================== ✅ あなたのFirebaseコンフィグ ✅ ====================
+    const firebaseConfig = {
+        apiKey: "AIzaSyCrq4g8ylsjxLXB92gxsSMRlVHJRKSw20s",
+        authDomain: "attendance-system-d48a7.firebaseapp.com",
+        databaseURL: "https://attendance-system-d48a7-default-rtdb.firebaseio.com",
+        projectId: "attendance-system-d48a7",
+        storageBucket: "attendance-system-d48a7.appspot.com",
+        messagingSenderId: "994527325154",
+        appId: "1:994527325154:web:2443ef88f716b55c13e7bb"
+    };
+    // ==================== ✅ Firebase設定完了 ✅ ====================
+
+    // Firebase初期化
+    let db = null;
+    let isFirebaseConfigured = false;
+
+    function initializeFirebase() {
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            isFirebaseConfigured = true;
+            console.log('✓ Firebase初期化完了 🎉');
+            document.getElementById('configMsg').innerHTML = '✅ Firebase接続成功！';
+            document.getElementById('configMsg').style.background = '#dcfce7';
+            document.getElementById('configMsg').style.color = '#166534';
+            document.getElementById('configMsg').style.borderColor = '#86efac';
+            document.getElementById('configMsg').classList.remove('hidden');
+            return true;
+        } catch (error) {
+            console.error('✗ Firebase初期化エラー:', error);
+            document.getElementById('configMsg').innerHTML = '❌ Firebase接続エラー: ' + error.message;
+            document.getElementById('configMsg').classList.remove('hidden');
+            return false;
+        }
+    }
+
+    // バージョン情報を表示
+    if (document.getElementById('versionInfo')) {
+        document.getElementById('versionInfo').textContent = 
+            `バージョン: ${SYSTEM_INFO.VERSION} (${SYSTEM_INFO.RELEASE_DATE})`;
+    }
+
+    // ==================== グローバル変数 ====================
+    const ADMIN_ID = 'admin001';
+    const ADMIN_PASS = 'admin1234';
+    const LOCAL_STORAGE_KEY = 'attendance_local_v8_lts';
+    
+    let currentUser = null;
+    let currentMember = null;
+    let isOnline = navigator.onLine;
+    let localData = { members: [], attendance: [] };
+    let memberChart = null;
+    let adminChart = null;
+    let syncQueue = [];
+    let lastSyncTime = 0;
+
+    // ==================== ユーティリティ関数 ====================
+    function el(id) {
+        return document.getElementById(id);
+    }
+
+    function today() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    function getCurrentDateTime() {
+        const now = new Date();
+        return now.toLocaleString('ja-JP', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    }
+
+    function showMessage(elementId, text, isError = false) {
+        const msgBox = el(elementId);
+        if (!msgBox) return;
+        msgBox.textContent = text;
+        msgBox.classList.add('show');
+        if (isError) msgBox.classList.add('error');
+        setTimeout(() => {
+            msgBox.classList.remove('show');
+            if (isError) msgBox.classList.remove('error');
+            msgBox.textContent = '';
+        }, 3000);
+    }
+
+    // ==================== ローカルストレージ管理 ====================
+    function loadLocalData() {
+        try {
+            const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (saved) {
+                localData = JSON.parse(saved);
+                console.log('✓ ローカルデータ読み込み完了:', localData);
+            }
+        } catch (error) {
+            console.error('✗ ローカルデータ読み込みエラー:', error);
+            localData = { members: [], attendance: [] };
+        }
+    }
+
+    function saveLocalData() {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(localData));
+        } catch (error) {
+            console.error('✗ ローカルデータ保存エラー:', error);
+        }
+    }
+
+    // ==================== JSONバックアップ機能 ====================
+    function getBackupFileName() {
+        const date = new Date();
+        const dateStr = date.toISOString().split('T')[0];
+        const timeStr = date.getHours().toString().padStart(2, '0') + 
+                       date.getMinutes().toString().padStart(2, '0');
+        return `attendance_backup_${dateStr}_${timeStr}.json`;
+    }
+
+    function downloadBackupJSON() {
+        const backupData = {
+            systemVersion: SYSTEM_INFO.VERSION,
+            backupDate: getCurrentDateTime(),
+            exportDate: new Date().toISOString(),
+            members: localData.members,
+            attendance: localData.attendance,
+            statistics: {
+                totalMembers: localData.members.length,
+                totalRecords: localData.attendance.length,
+                todayRecords: localData.attendance.filter(item => item.date === today()).length
+            }
+        };
+
+        const dataStr = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = getBackupFileName();
+        a.click();
+        URL.revokeObjectURL(url);
+
+        console.log('✓ JSONバックアップダウンロード完了');
+        const backupInfo = el('backupInfo');
+        if (backupInfo) {
+            backupInfo.textContent = `✓ バックアップ完了: ${getCurrentDateTime()}`;
+        }
+    }
+
+    // ==================== オンライン/オフライン状態管理 ====================
+    function updateConnectionStatus(status) {
+        const memberStatus = el('memberConnectionStatus');
+        const adminStatus = el('adminConnectionStatus');
+        const memberText = el('syncTextMember');
+        const adminText = el('syncTextAdmin');
+
+        [memberStatus, adminStatus].forEach(elem => {
+            if (!elem) return;
+            elem.classList.remove('online', 'offline', 'syncing');
+            
+            const statusDot = elem.querySelector('.status-dot');
+            if (statusDot) {
+                statusDot.classList.remove('online', 'offline', 'syncing');
+            }
+            
+            if (status === 'online') {
+                elem.classList.add('online');
+                if (statusDot) statusDot.classList.add('online');
+            } else if (status === 'offline') {
+                elem.classList.add('offline');
+                if (statusDot) statusDot.classList.add('offline');
+            } else if (status === 'syncing') {
+                elem.classList.add('syncing');
+                if (statusDot) statusDot.classList.add('syncing');
+            }
+        });
+
+        const statusText = status === 'online' ? '✓ 接続中' :
+                          status === 'syncing' ? '⟳ 同期中...' :
+                          '✗ オフライン';
+
+        if (memberText) memberText.textContent = statusText;
+        if (adminText) adminText.textContent = statusText;
+    }
+
+    function setupFirebaseConnectionListener() {
+        if (!isFirebaseConfigured || !db) {
+            console.log('⚠️ Firebase未設定: 接続リスナースキップ');
+            return;
+        }
+
+        try {
+            const connectedRef = db.ref('.info/connected');
+            connectedRef.on('value', (snapshot) => {
+                if (snapshot.val() === true) {
+                    isOnline = true;
+                    updateConnectionStatus('online');
+                    console.log('✓ Firebase接続確立 🔗');
+                    processSyncQueue();
+                } else {
+                    isOnline = false;
+                    updateConnectionStatus('offline');
+                    console.log('✗ Firebase接続切断');
+                }
+            });
+        } catch (error) {
+            console.error('✗ 接続リスナーエラー:', error);
+        }
+    }
+
+    // ==================== Firebase リアルタイム同期 ====================
+    function setupMembersListener() {
+        if (!isFirebaseConfigured || !db) {
+            console.log('⚠️ Firebase未設定: 会員リスナースキップ');
+            return;
+        }
+
+        try {
+            db.ref('members').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    localData.members = Object.values(data);
+                    saveLocalData();
+                    console.log('✓ 会員データ同期:', localData.members.length);
+                    refreshUI();
+                    loadMemberSelectOptions();
+                } else {
+                    localData.members = [];
+                    saveLocalData();
+                }
+            }, (error) => {
+                console.error('✗ 会員リスナーエラー:', error);
+                updateConnectionStatus('offline');
+            });
+        } catch (error) {
+            console.error('✗ 会員リスナー設定エラー:', error);
+        }
+    }
+
+    function setupAttendanceListener() {
+        if (!isFirebaseConfigured || !db) {
+            console.log('⚠️ Firebase未設定: 出席リスナースキップ');
+            return;
+        }
+
+        try {
+            db.ref('attendance').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    localData.attendance = Object.values(data);
+                    saveLocalData();
+                    console.log('✓ 出席データ同期:', localData.attendance.length);
+                    refreshUI();
+                }
+            }, (error) => {
+                console.error('✗ 出席リスナーエラー:', error);
+                updateConnectionStatus('offline');
+            });
+        } catch (error) {
+            console.error('✗ 出席リスナー設定エラー:', error);
+        }
+    }
+
+    async function addMemberToFirebase(member) {
+        if (!isFirebaseConfigured || !db) {
+            console.log('⚠️ Firebase未設定: ローカル保存のみ');
+            return false;
+        }
+
+        try {
+            updateConnectionStatus('syncing');
+            const newRef = db.ref('members').push();
+            await newRef.set({
+                ...member,
+                createdAt: new Date().toISOString()
+            });
+            lastSyncTime = Date.now();
+            updateConnectionStatus('online');
+            console.log('✓ 会員をFirebaseに追加');
+            return true;
+        } catch (error) {
+            console.error('✗ 会員追加エラー:', error);
+            addToSyncQueue('ADD_MEMBER', member);
+            updateConnectionStatus('offline');
+            return false;
+        }
+    }
+
+    async function addAttendanceToFirebase(record) {
+        if (!isFirebaseConfigured || !db) {
+            console.log('⚠️ Firebase未設定: ローカル保存のみ');
+            return false;
+        }
+
+        try {
+            updateConnectionStatus('syncing');
+            const newRef = db.ref('attendance').push();
+            await newRef.set(record);
+            lastSyncTime = Date.now();
+            updateConnectionStatus('online');
+            console.log('✓ 出席をFirebaseに追加');
+            return true;
+        } catch (error) {
+            console.error('✗ 出席追加エラー:', error);
+            addToSyncQueue('ADD_ATTENDANCE', record);
+            updateConnectionStatus('offline');
+            return false;
+        }
+    }
+
+    async function resetTodayData() {
+        if (!isFirebaseConfigured || !db) {
+            console.log('⚠️ Firebase未設定: ローカル削除のみ');
+            return true;
+        }
+
+        try {
+            updateConnectionStatus('syncing');
+            const snapshot = await db.ref('attendance').get();
+            const updates = {};
+            
+            if (snapshot.exists()) {
+                snapshot.forEach((child) => {
+                    const record = child.val();
+                    if (record && record.date === today()) {
+                        updates[child.key] = null;
+                    }
+                });
+            }
+            
+            if (Object.keys(updates).length > 0) {
+                await db.ref('attendance').update(updates);
+            }
+            
+            lastSyncTime = Date.now();
+            updateConnectionStatus('online');
+            console.log('✓ 本日データをリセット');
+            return true;
+        } catch (error) {
+            console.error('✗ リセットエラー:', error);
+            return false;
+        }
+    }
+
+    // ==================== 同期キュー管理 ====================
+    function addToSyncQueue(action, data) {
+        syncQueue.push({ action, data, timestamp: Date.now() });
+        localStorage.setItem('syncQueue', JSON.stringify(syncQueue));
+        console.log('✓ 同期キューに追加:', action);
+    }
+
+    async function processSyncQueue() {
+        if (syncQueue.length === 0) return;
+        
+        console.log('✓ 同期キュー処理開始:', syncQueue.length);
+        updateConnectionStatus('syncing');
+
+        for (const item of syncQueue) {
+            try {
+                if (item.action === 'ADD_MEMBER') {
+                    await addMemberToFirebase(item.data);
+                } else if (item.action === 'ADD_ATTENDANCE') {
+                    await addAttendanceToFirebase(item.data);
+                }
+            } catch (error) {
+                console.error('✗ 同期キュー処理エラー:', error);
+                break;
+            }
+        }
+
+        syncQueue = [];
+        localStorage.removeItem('syncQueue');
+        updateConnectionStatus('online');
+        console.log('✓ 同期キュー処理完了');
+    }
+
+    // ==================== ログイン機能 ====================
+    function showLoginPage() {
+        el('loginPage').classList.remove('hidden');
+        el('memberLoginPage').classList.add('hidden');
+        el('adminLoginPage').classList.add('hidden');
+        el('memberApp').classList.add('hidden');
+        el('adminApp').classList.add('hidden');
+    }
+
+    function showMemberLoginPage() {
+        el('loginPage').classList.add('hidden');
+        el('memberLoginPage').classList.remove('hidden');
+        el('adminLoginPage').classList.add('hidden');
+        loadMemberSelectOptions();
+    }
+
+    function showAdminLoginPage() {
+        el('loginPage').classList.add('hidden');
+        el('memberLoginPage').classList.add('hidden');
+        el('adminLoginPage').classList.remove('hidden');
+    }
+
+    function loadMemberSelectOptions() {
+        const select = el('memberSelect');
+        select.innerHTML = '<option value="">-- 会員を選択 --</option>';
+        
+        if (localData.members.length === 0) {
+            const option = document.createElement('option');
+            option.textContent = '-- 会員が登録されていません --';
+            option.disabled = true;
+            select.appendChild(option);
+            return;
+        }
+
+        localData.members.forEach(member => {
+            const option = document.createElement('option');
+            option.value = JSON.stringify(member);
+            option.textContent = member.name + ' (' + member.grade + '年 ' + member.className + ')';
+            select.appendChild(option);
+        });
+    }
+
+    function memberLogin() {
+        const selectEl = el('memberSelect');
+        const selectedValue = selectEl.value;
+        if (!selectedValue) {
+            el('memberLoginMsg').textContent = '会員を選択してください';
+            return;
+        }
+        try {
+            currentMember = JSON.parse(selectedValue);
+            currentUser = { role: 'member' };
+            localStorage.setItem('login', 'true');
+            localStorage.setItem('userRole', 'member');
+            localStorage.setItem('currentMember', selectedValue);
+            el('memberLoginMsg').textContent = '';
+            console.log('✓ 会員ログイン:', currentMember.name);
+            showMemberApp();
+        } catch (error) {
+            el('memberLoginMsg').textContent = 'エラーが発生しました';
+            console.error('✗ ログインエラー:', error);
+        }
+    }
+
+    function memberLogout() {
+        if (!confirm('ログアウトしますか？')) return;
+        currentUser = null;
+        currentMember = null;
+        localStorage.removeItem('login');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('currentMember');
+        console.log('✓ ログアウト');
+        showLoginPage();
+    }
+
+    function showMemberApp() {
+        el('loginPage').classList.add('hidden');
+        el('memberLoginPage').classList.add('hidden');
+        el('adminLoginPage').classList.add('hidden');
+        el('memberApp').classList.remove('hidden');
+        el('adminApp').classList.add('hidden');
+        if (currentMember) {
+            el('memberUserInfo').textContent = currentMember.name + ' (' + currentMember.grade + '年 ' + currentMember.className + ')';
+        }
+        updateConnectionStatus(isOnline ? 'online' : 'offline');
+        setupAttendanceListener();
+        refreshMemberApp();
+    }
+
+    function adminLogin() {
+        const id = el('adminLoginId').value.trim();
+        const pass = el('adminLoginPass').value.trim();
+        if (!id || !pass) {
+            el('adminLoginMsg').textContent = 'IDとパスワードを入力してください';
+            return;
+        }
+        if (id !== ADMIN_ID || pass !== ADMIN_PASS) {
+            el('adminLoginMsg').textContent = 'ログイン情報が違います';
+            return;
+        }
+        currentUser = { id: ADMIN_ID, role: 'admin' };
+        localStorage.setItem('login', 'true');
+        localStorage.setItem('userRole', 'admin');
+        el('adminLoginMsg').textContent = '';
+        console.log('✓ 管理者ログイン');
+        showAdminApp();
+    }
+
+    function adminLogout() {
+        if (!confirm('ログアウトしますか？')) return;
+        currentUser = null;
+        localStorage.removeItem('login');
+        localStorage.removeItem('userRole');
+        el('adminLoginId').value = '';
+        el('adminLoginPass').value = '';
+        console.log('✓ ログアウト');
+        showLoginPage();
+    }
+
+    function showAdminApp() {
+        el('loginPage').classList.add('hidden');
+        el('memberLoginPage').classList.add('hidden');
+        el('adminLoginPage').classList.add('hidden');
+        el('memberApp').classList.add('hidden');
+        el('adminApp').classList.remove('hidden');
+        updateConnectionStatus(isOnline ? 'online' : 'offline');
+        setupMembersListener();
+        setupAttendanceListener();
+        updateSystemInfo();
+        refreshAdminApp();
+    }
+
+    // ==================== システム情報更新 ====================
+    function updateSystemInfo() {
+        if (el('sysVersion')) el('sysVersion').textContent = SYSTEM_INFO.VERSION;
+        if (el('sysUpdated')) el('sysUpdated').textContent = SYSTEM_INFO.LAST_UPDATED;
+        if (el('sysMemberCount')) el('sysMemberCount').textContent = localData.members.length;
+        if (el('sysRecordCount')) el('sysRecordCount').textContent = localData.attendance.length;
+        
+        if (el('sysLastSync')) {
+            el('sysLastSync').textContent = lastSyncTime > 0 ? 
+                new Date(lastSyncTime).toLocaleString('ja-JP') : '未同期';
+        }
+    }
+
+    // ==================== 会員機能 ====================
+    let memberStatusToRegister = null;
+
+    function selectMemberStatus(status) {
+        memberStatusToRegister = status;
+    }
+
+    async function memberSubmitAttendance() {
+        if (!memberStatusToRegister) {
+            alert('状態を選択してください');
+            return;
+        }
+
+        if (!currentMember) {
+            alert('会員情報が読み込まれていません');
+            return;
+        }
+
+        const reason = el('memberReasonInput').value.trim();
+        const exists = localData.attendance.some(item =>
+            item.date === today() &&
+            item.name === currentMember.name
+        );
+
+        if (exists) {
+            showMessage('memberMessageBox', '本日は既に登録済みです', true);
+            memberStatusToRegister = null;
+            return;
+        }
+
+        const newRecord = {
+            date: today(),
+            name: currentMember.name,
+            grade: currentMember.grade,
+            className: currentMember.className,
+            status: memberStatusToRegister,
+            reason: reason,
+            timestamp: new Date().toISOString()
+        };
+
+        localData.attendance.push(newRecord);
+        saveLocalData();
+
+        const statusEmoji = { '出席': '✓', '欠席': '✗', '遅刻': '⏱', '早退': '→' };
+        showMessage('memberMessageBox', statusEmoji[memberStatusToRegister] + ' 登録しました', false);
+
+        const success = await addAttendanceToFirebase(newRecord);
+        if (!success && isOnline) {
+            showMessage('memberMessageBox', '登録済み（次回同期時に反映）', false);
+        }
+
+        el('memberReasonInput').value = '';
+        memberStatusToRegister = null;
+        refreshMemberApp();
+    }
+
+    function refreshMemberApp() {
+        const todayData = localData.attendance.filter(item => item.date === today());
+
+        let present = 0, absent = 0, late = 0, leave = 0;
+        todayData.forEach(item => {
+            if (item.status === '出席') present++;
+            else if (item.status === '欠席') absent++;
+            else if (item.status === '遅刻') late++;
+            else if (item.status === '早退') leave++;
+        });
+
+        el('memberPresentCount').textContent = present;
+        el('memberAbsentCount').textContent = absent;
+        el('memberLateCount').textContent = late;
+        el('memberLeaveCount').textContent = leave;
+
+        let html = '';
+        todayData.forEach(item => {
+            const statusEmoji = { '出席': '✓', '欠席': '✗', '遅刻': '⏱', '早退': '→' };
+            html += '<div class="list-item"><strong>' + statusEmoji[item.status] + ' ' + item.name + '</strong><small>(' + item.grade + '年 ' + item.className + ')</small></div>';
+        });
+        el('memberTodayList').innerHTML = html || '<p style="color: #999;">データなし</p>';
+
+        createMemberChart(todayData);
+    }
+
+    function createMemberChart(attendance) {
+        let present = 0, absent = 0, late = 0, leave = 0;
+        attendance.forEach(item => {
+            if (item.status === '出席') present++;
+            else if (item.status === '欠席') absent++;
+            else if (item.status === '遅刻') late++;
+            else if (item.status === '早退') leave++;
+        });
+
+        if (memberChart) memberChart.destroy();
+        const canvas = el('memberChart');
+        if (!canvas) return;
+
+        memberChart = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['出席', '欠席', '遅刻', '早退'],
+                datasets: [{
+                    data: [present, absent, late, leave],
+                    backgroundColor: ['#22c55e', '#ef4444', '#f59e0b', '#8b5cf6'],
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+
+    // ==================== 管理者機能 ====================
+    async function addMember() {
+        const name = el('newMemberName').value.trim();
+        const grade = el('newMemberGrade').value;
+        const className = el('newMemberClass').value;
+
+        if (!name || !grade || !className) {
+            alert('全て入力してください');
+            return;
+        }
+
+        const exists = localData.members.some(m => 
+            m.name === name && m.grade === grade && m.className === className
+        );
+
+        if (exists) {
+            alert('既に登録されています');
+            return;
+        }
+
+        const newMember = { 
+            name, 
+            grade, 
+            className,
+            createdAt: new Date().toISOString()
+        };
+
+        localData.members.push(newMember);
+        saveLocalData();
+
+        el('newMemberName').value = '';
+        el('newMemberGrade').value = '';
+        el('newMemberClass').value = '';
+
+        const success = await addMemberToFirebase(newMember);
+        
+        alert('会員を追加しました！' + (!isOnline ? '（接続時に同期）' : ''));
+
+        loadMemberSelectOptions();
+        refreshAdminApp();
+    }
+
+    async function refreshAdminApp() {
+        const todayData = localData.attendance.filter(item => item.date === today());
+
+        let present = 0, absent = 0, late = 0, leave = 0;
+        todayData.forEach(item => {
+            if (item.status === '出席') present++;
+            else if (item.status === '欠席') absent++;
+            else if (item.status === '遅刻') late++;
+            else if (item.status === '早退') leave++;
+        });
+
+        el('presentCount').textContent = present;
+        el('absentCount').textContent = absent;
+        el('lateCount').textContent = late;
+        el('leaveCount').textContent = leave;
+        el('unregisteredCount').textContent = Math.max(0, localData.members.length - present);
+
+        let todayHtml = '';
+        todayData.forEach(item => {
+            const statusEmoji = { '出席': '✓', '欠席': '✗', '遅刻': '⏱', '早退': '→' };
+            todayHtml += '<div class="list-item"><strong>' + statusEmoji[item.status] + ' ' + item.name + '</strong><small>(' + item.grade + '年 ' + item.className + ')</small></div>';
+        });
+        el('todayList').innerHTML = todayHtml || '<p style="color: #999;">データなし</p>';
+
+        const registered = todayData.map(item => item.name);
+        const unregistered = localData.members.filter(m => !registered.includes(m.name));
+        let unregisteredHtml = '';
+        unregistered.forEach(member => {
+            unregisteredHtml += '<div class="list-item"><strong>' + member.name + '</strong><small>(' + member.grade + '年 ' + member.className + ')</small></div>';
+        });
+        el('unregisteredList').innerHTML = unregisteredHtml || '<p style="color: #999;">全員登録済み！</p>';
+
+        let memberHtml = '';
+        localData.members.forEach(member => {
+            memberHtml += '<div class="list-item"><strong>' + member.name + '</strong><small>(' + member.grade + '年 ' + member.className + ')</small></div>';
+        });
+        el('memberList').innerHTML = memberHtml || '<p style="color: #999;">会員なし</p>';
+
+        createAdminChart(todayData);
+        updateSystemInfo();
+    }
+
+    function createAdminChart(attendance) {
+        let present = 0, absent = 0, late = 0, leave = 0;
+        attendance.forEach(item => {
+            if (item.status === '出席') present++;
+            else if (item.status === '欠席') absent++;
+            else if (item.status === '遅刻') late++;
+            else if (item.status === '早退') leave++;
+        });
+
+        if (adminChart) adminChart.destroy();
+        const canvas = el('adminChart');
+        if (!canvas) return;
+
+        adminChart = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['出席', '欠席', '遅刻', '早退'],
+                datasets: [{
+                    data: [present, absent, late, leave],
+                    backgroundColor: ['#22c55e', '#ef4444', '#f59e0b', '#8b5cf6'],
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+
+    function refreshUI() {
+        if (currentUser && currentUser.role === 'member') {
+            refreshMemberApp();
+        } else if (currentUser && currentUser.role === 'admin') {
+            refreshAdminApp();
+        }
+    }
+
+    // ==================== イベントリスナー ====================
+    window.addEventListener('load', async () => {
+        console.log('=== 出席管理システム起動 ===');
+        
+        // Firebase初期化
+        initializeFirebase();
+        
+        loadLocalData();
+        
+        try {
+            const saved = localStorage.getItem('syncQueue');
+            if (saved) {
+                syncQueue = JSON.parse(saved);
+                console.log('✓ 同期キュー復元:', syncQueue.length);
+            }
+        } catch (error) {
+            console.error('✗ 同期キュー復元エラー:', error);
+        }
+
+        setupFirebaseConnectionListener();
+
+        // ボタンイベント
+        el('memberLoginBtn').addEventListener('click', showMemberLoginPage);
+        el('adminLoginBtn').addEventListener('click', showAdminLoginPage);
+        el('memberLoginSubmitBtn').addEventListener('click', memberLogin);
+        el('memberBackBtn').addEventListener('click', showLoginPage);
+        el('memberLogoutBtn').addEventListener('click', memberLogout);
+        el('memberPresentBtn').addEventListener('click', () => { selectMemberStatus('出席'); memberSubmitAttendance(); });
+        el('memberAbsentBtn').addEventListener('click', () => { selectMemberStatus('欠席'); memberSubmitAttendance(); });
+        el('memberLateBtn').addEventListener('click', () => { selectMemberStatus('遅刻'); memberSubmitAttendance(); });
+        el('memberLeaveBtn').addEventListener('click', () => { selectMemberStatus('早退'); memberSubmitAttendance(); });
+        el('adminLoginId').addEventListener('keypress', (e) => { if (e.key === 'Enter') adminLogin(); });
+        el('adminLoginPass').addEventListener('keypress', (e) => { if (e.key === 'Enter') adminLogin(); });
+        el('adminLoginSubmitBtn').addEventListener('click', adminLogin);
+        el('adminBackBtn').addEventListener('click', showLoginPage);
+        el('adminLogoutBtn').addEventListener('click', adminLogout);
+        el('addMemberBtn').addEventListener('click', addMember);
+        el('refreshBtn').addEventListener('click', async () => {
+            updateConnectionStatus('syncing');
+            setupAttendanceListener();
+            setupMembersListener();
+            setTimeout(() => {
+                updateConnectionStatus(isOnline ? 'online' : 'offline');
+            }, 500);
+        });
+        el('backupBtn').addEventListener('click', downloadBackupJSON);
+        el('resetDataBtn').addEventListener('click', async () => {
+            if (!confirm('本日のデータをリセットしますか？')) return;
+            localData.attendance = localData.attendance.filter(item => item.date !== today());
+            saveLocalData();
+            await resetTodayData();
+            refreshAdminApp();
+        });
+
+        window.addEventListener('online', () => {
+            isOnline = true;
+            updateConnectionStatus('online');
+            processSyncQueue();
+            console.log('✓ オンライン');
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            updateConnectionStatus('offline');
+            console.log('✗ オフライン');
+        });
+
+        const flag = localStorage.getItem('login');
+        const role = localStorage.getItem('userRole');
+        if (flag === 'true') {
+            if (role === 'member') {
+                const memberStr = localStorage.getItem('currentMember');
+                if (memberStr) {
+                    try {
+                        currentMember = JSON.parse(memberStr);
+                        currentUser = { role: 'member' };
+                        showMemberApp();
+                    } catch (error) {
+                        showLoginPage();
+                    }
+                } else {
+                    showLoginPage();
+                }
+            } else if (role === 'admin') {
+                currentUser = { id: ADMIN_ID, role: 'admin' };
+                showAdminApp();
+            } else {
+                showLoginPage();
+            }
+        } else {
+            showLoginPage();
+        }
+
+        console.log('=== 初期化完了 ===');
+    });
+</script>
+
+</body>
+</html>
