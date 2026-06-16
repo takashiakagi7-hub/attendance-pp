@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 接続テスト</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .test-section h2 {
+            color: #667eea;
+            font-size: 16px;
+            margin: 0 0 10px 0;
+        }
+        .log-box {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            min-height: 100px;
+        }
+        .log-entry {
+            padding: 5px 0;
+            line-height: 1.4;
+        }
+        .log-success {
+            color: #22c55e;
+        }
+        .log-error {
+            color: #ef4444;
+        }
+        .log-info {
+            color: #3b82f6;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 0;
+            width: 100%;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .config-display {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Firebase 接続テスト</h1>
+
+        <!-- Firebase設定情報 -->
+        <div class="test-section">
+            <h2>📋 Firebase 設定情報</h2>
+            <div class="config-display" id="configDisplay"></div>
+        </div>
+
+        <!-- 接続テスト -->
+        <div class="test-section">
+            <h2>🧪 接続テスト</h2>
+            <button onclick="testConnection()">接続テストを実行</button>
+            <div class="log-box" id="connectionLog"></div>
+        </div>
+
+        <!-- データベース読み取りテスト -->
+        <div class="test-section">
+            <h2>📖 データベース読み取りテスト</h2>
+            <button onclick="testDatabaseRead()">データベースを読む</button>
+            <div class="log-box" id="databaseLog"></div>
+        </div>
+
+        <!-- データベース書き込みテスト -->
+        <div class="test-section">
+            <h2>✍️ データベース書き込みテスト</h2>
+            <button onclick="testDatabaseWrite()">テストデータを書き込む</button>
+            <div class="log-box" id="writeLog"></div>
+        </div>
+
+        <!-- コンソール出力 -->
+        <div class="test-section">
+            <h2>📝 コンソール出力</h2>
+            <div class="log-box" id="consoleLog"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+
+    <script>
+        // ===============================================
+        // Firebase 設定
+        // ===============================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrq4g8ylsjxLXB92gxsSMRlVHJRKSw20s",
+            authDomain: "attendance-system-d48a7.firebaseapp.com",
+            databaseURL: "https://attendance-system-d48a7-default-rtdb.firebaseio.com",
+            projectId: "attendance-system-d48a7",
+            storageBucket: "attendance-system-d48a7.firebasestorage.app",
+            messagingSenderId: "994527325154",
+            appId: "1:994527325154:web:3d02d672efdb75c813e7bb"
+        };
+
+        // Firebase 初期化
+        try {
+            firebase.initializeApp(firebaseConfig);
+            addLog('info', 'consoleLog', '✅ Firebase初期化完了');
+        } catch (error) {
+            addLog('error', 'consoleLog', '❌ Firebase初期化エラー: ' + error.message);
+        }
+
+        // Firebaseサービスの取得
+        const database = firebase.database();
+        const auth = firebase.auth();
+
+        // ===============================================
+        // ユーティリティ関数
+        // ===============================================
+        function addLog(type, elementId, message) {
+            const logBox = document.getElementById(elementId);
+            const entry = document.createElement('div');
+            entry.className = 'log-entry log-' + type;
+            entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+            console.log(message);
+        }
+
+        function displayConfig() {
+            const configDisplay = document.getElementById('configDisplay');
+            configDisplay.innerHTML = `
+<pre>apiKey: ${firebaseConfig.apiKey}
+authDomain: ${firebaseConfig.authDomain}
+databaseURL: ${firebaseConfig.databaseURL}
+projectId: ${firebaseConfig.projectId}
+storageBucket: ${firebaseConfig.storageBucket}
+messagingSenderId: ${firebaseConfig.messagingSenderId}
+appId: ${firebaseConfig.appId}</pre>
+            `;
+        }
+
+        // ===============================================
+        // テスト関数
+        // ===============================================
+        function testConnection() {
+            const logId = 'connectionLog';
+            document.getElementById(logId).innerHTML = '';
+            addLog('info', logId, '接続テストを開始します...');
+
+            database.ref('.info/connected').once('value', (snapshot) => {
+                if (snapshot.val() === true) {
+                    addLog('success', logId, '✅ Firebase接続成功！');
+                    addLog('info', logId, 'Database URL: ' + firebaseConfig.databaseURL);
+                } else {
+                    addLog('error', logId, '❌ Firebase接続失敗');
+                }
+            }).catch((error) => {
+                addLog('error', logId, '❌ エラーが発生しました: ' + error.message);
+            });
+        }
+
+        function testDatabaseRead() {
+            const logId = 'databaseLog';
+            document.getElementById(logId).innerHTML = '';
+            addLog('info', logId, 'データベースからデータを読み込み中...');
+
+            database.ref('/').once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    addLog('success', logId, '✅ データ読み込み成功！');
+                    addLog('info', logId, 'データ内容: ' + JSON.stringify(data, null, 2));
+                } else {
+                    addLog('info', logId, 'データベースは空です（これは正常です）');
+                }
+            }).catch((error) => {
+                addLog('error', logId, '❌ 読み込みエラー: ' + error.message);
+            });
+        }
+
+        function testDatabaseWrite() {
+            const logId = 'writeLog';
+            document.getElementById(logId).innerHTML = '';
+            addLog('info', logId, 'テストデータを書き込み中...');
+
+            const testData = {
+                timestamp: new Date().toISOString(),
+                message: 'Firebase接続テスト',
+                status: 'success'
+            };
+
+            database.ref('/test/connection').set(testData)
+                .then(() => {
+                    addLog('success', logId, '✅ 書き込み成功！');
+                    addLog('info', logId, 'パス: /test/connection');
+                    addLog('info', logId, 'データ: ' + JSON.stringify(testData, null, 2));
+                })
+                .catch((error) => {
+                    addLog('error', logId, '❌ 書き込みエラー: ' + error.message);
+                    addLog('info', logId, '💡 ヒント: Realtime Databaseのセキュリティルールを確認してください');
+                });
+        }
+
+        // ===============================================
+        // 初期化
+        // ===============================================
+        window.addEventListener('DOMContentLoaded', () => {
+            displayConfig();
+            addLog('info', 'consoleLog', '🚀 テストページが読み込まれました');
+        });
+    </script>
+</body>
+</html>
